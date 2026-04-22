@@ -18,7 +18,7 @@ GitHub Actions are expected to:
 
 - lint and render the chart on every change
 - package the chart into a `.tgz` artifact
-- upload the packaged chart to an existing GitHub Release when a release is published
+- publish the packaged chart to a GitHub Release on successful `main` builds
 
 ## Current defaults
 
@@ -113,23 +113,24 @@ Chart versions are generated automatically from git tags:
 - if you later raise the base version in `Chart.yaml` manually, that becomes the
   next release floor
 
-The workflow uploads the generated `.tgz` as a GitHub Actions artifact so another
-pipeline can publish it however you prefer.
+The workflow uploads the generated `.tgz` as a GitHub Actions artifact and, on
+successful `main` builds, publishes the same chart package to a versioned GitHub
+Release.
 
-## Release asset upload
+## Release publishing
 
-If your repository already has a separate release process, the included
-[chart-release-asset workflow](/var/home/tearle/Work/build-buddy/buildbuddy-k8s/.github/workflows/chart-release-asset.yaml:1)
-does not create releases. It only attaches the packaged chart to an existing
-GitHub Release.
+On successful pushes to `main`, the CI workflow now:
 
-Expected tag format:
+- computes the chart version
+- packages `buildbuddy-<version>.tgz`
+- creates or updates the GitHub Release tagged `buildbuddy-v<version>`
+- uploads the packaged chart asset to that release
 
-- `buildbuddy-v0.1.0`
+Example:
 
-Resulting uploaded asset:
+- tag: `buildbuddy-v0.1.0`
+- release asset: `buildbuddy-0.1.0.tgz`
 
-- `buildbuddy-0.1.0.tgz`
+That is the stable URL Argo CD and Helmfile can fetch:
 
-You can run it automatically from a published GitHub Release or manually with
-`workflow_dispatch` against an existing tag.
+`https://github.com/bit-bot-bit/buildbuddy-k8s/releases/download/buildbuddy-v0.1.0/buildbuddy-0.1.0.tgz`
