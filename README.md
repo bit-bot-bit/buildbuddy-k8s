@@ -18,6 +18,7 @@ GitHub Actions are expected to:
 
 - lint and render the chart on every change
 - package the chart into a `.tgz` artifact
+- upload the packaged chart to an existing GitHub Release when a release is published
 
 ## Current defaults
 
@@ -114,3 +115,21 @@ Chart versions are generated automatically from git tags:
 
 The workflow uploads the generated `.tgz` as a GitHub Actions artifact so another
 pipeline can publish it however you prefer.
+
+## Release asset upload
+
+If your repository already has a separate release process, the included
+[chart-release-asset workflow](/var/home/tearle/Work/build-buddy/buildbuddy-k8s/.github/workflows/chart-release-asset.yaml:1)
+does not create releases. It only attaches the packaged chart to an existing
+GitHub Release.
+
+Expected tag format:
+
+- `buildbuddy-v0.1.0`
+
+Resulting uploaded asset:
+
+- `buildbuddy-0.1.0.tgz`
+
+You can run it automatically from a published GitHub Release or manually with
+`workflow_dispatch` against an existing tag.
