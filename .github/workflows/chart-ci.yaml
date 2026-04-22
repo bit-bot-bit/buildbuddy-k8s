@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "Chart.yaml"
-      - "Chart.lock"
       - "values.yaml"
       - "README.md"
       - "templates/**"
@@ -15,7 +14,6 @@ on:
       - main
     paths:
       - "Chart.yaml"
-      - "Chart.lock"
       - "values.yaml"
       - "README.md"
       - "templates/**"
@@ -51,11 +49,6 @@ jobs:
 
       - name: Apply computed chart version
         run: .github/scripts/set-chart-version.sh "${{ steps.version.outputs.version }}"
-
-      - name: Add chart dependencies
-        run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm dependency build .
 
       - name: Lint chart
         run: helm lint .
