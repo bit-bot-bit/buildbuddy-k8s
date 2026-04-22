@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "buildbuddy.fullname" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ printf "%s-headless" (include "buildbuddy.fullname" .) }}
+  selector:
+    matchLabels:
+      {{- include "buildbuddy.appSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "buildbuddy.appSelectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "buildbuddy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- if .Values.enterprise }}
+          image: "{{ replace "onprem" "enterprise" .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ENV
+              value: "onprem"
+            - name: SERVICE_NAME
+              value: "app-backend"
+            - name: VERSION
+              value: "{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- if .Values.secretEnv }}
+          envFrom:
+            - secretRef:
+                name: {{ include "buildbuddy.appEnvSecretName" . }}
+          {{- end }}
+          {{- range .Values.extraEnvSecrets }}
+            - secretRef:
+                name: {{ . }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.httpPort }}
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ .Values.service.grpcPort }}
+              protocol: TCP
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            - name: config
+              mountPath: /config.yaml
+              subPath: config.yaml
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          {{- if eq (include "buildbuddy.appConfigObjectKind" .) "secret" }}
+          secret:
+            secretName: {{ include "buildbuddy.appConfigObjectName" . }}
+          {{- else }}
+          configMap:
+            name: {{ include "buildbuddy.appConfigObjectName" . }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- else if gt (int .Values.replicaCount) 1 }}
+      affinity:
+        {{- include "buildbuddy.defaultAffinity" . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
+        {{- if .Values.persistence.storageClass }}
+        {{- if eq "-" .Values.persistence.storageClass }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: "{{ .Values.persistence.storageClass }}"
+        {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  {{- end }}

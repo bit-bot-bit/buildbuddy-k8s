@@ -1,0 +1,26 @@
+{{- if and .Values.executor.enabled .Values.executor.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "buildbuddy.executorFullname" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: executor
+  {{- with .Values.executor.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.executor.service.type }}
+  {{- if eq .Values.executor.service.type "ClusterIP" }}
+  clusterIP: None
+  publishNotReadyAddresses: true
+  {{- end }}
+  selector:
+    {{- include "buildbuddy.executorSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: grpc
+      port: {{ .Values.executor.service.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+{{- end }}

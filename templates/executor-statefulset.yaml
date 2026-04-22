@@ -1,0 +1,142 @@
+{{- if .Values.executor.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "buildbuddy.executorFullname" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: executor
+spec:
+  replicas: {{ .Values.executor.replicaCount }}
+  serviceName: {{ include "buildbuddy.executorFullname" . }}
+  selector:
+    matchLabels:
+      {{- include "buildbuddy.executorSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.executor.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "buildbuddy.executorSelectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "buildbuddy.executorServiceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.executor.podSecurityContext | nindent 8 }}
+      containers:
+        - name: executor
+          securityContext:
+            {{- toYaml .Values.executor.securityContext | nindent 12 }}
+          image: "{{ .Values.executor.image.repository }}:{{ .Values.executor.image.tag }}"
+          imagePullPolicy: {{ .Values.executor.image.pullPolicy }}
+          env:
+            - name: SERVICE_NAME
+              value: "executor"
+            - name: VERSION
+              value: "{{ .Values.executor.image.tag }}"
+          {{- if .Values.executor.secretEnv }}
+          envFrom:
+            - secretRef:
+                name: {{ include "buildbuddy.executorEnvSecretName" . }}
+          {{- end }}
+          {{- range .Values.executor.extraEnvSecrets }}
+            - secretRef:
+                name: {{ . }}
+          {{- end }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.executor.service.grpcPort }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+          volumeMounts:
+            - name: config
+              mountPath: /config.yaml
+              subPath: config.yaml
+            {{- if .Values.executor.cache.enabled }}
+            - name: executor-cache
+              mountPath: {{ .Values.executor.cache.mountPath }}
+            {{- end }}
+            {{- if .Values.executor.workspace.enabled }}
+            - name: executor-workspace
+              mountPath: {{ .Values.executor.workspace.mountPath }}
+            {{- end }}
+            {{- with .Values.executor.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.executor.resources | nindent 12 }}
+      volumes:
+        - name: config
+          {{- if eq (include "buildbuddy.appConfigObjectKind" .) "secret" }}
+          secret:
+            secretName: {{ include "buildbuddy.appConfigObjectName" . }}
+          {{- else }}
+          configMap:
+            name: {{ include "buildbuddy.appConfigObjectName" . }}
+          {{- end }}
+        {{- with .Values.executor.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.executor.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.executor.affinity }}
+      affinity:
+        {{- toYaml .Values.executor.affinity | nindent 8 }}
+      {{- else if gt (int .Values.executor.replicaCount) 1 }}
+      affinity:
+        {{- include "buildbuddy.executorDefaultAffinity" . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.executor.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if or .Values.executor.cache.enabled .Values.executor.workspace.enabled }}
+  volumeClaimTemplates:
+    {{- if .Values.executor.cache.enabled }}
+    - metadata:
+        name: executor-cache
+      spec:
+        accessModes:
+          {{- toYaml .Values.executor.cache.accessModes | nindent 10 }}
+        {{- if .Values.executor.cache.storageClass }}
+        {{- if eq "-" .Values.executor.cache.storageClass }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: "{{ .Values.executor.cache.storageClass }}"
+        {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.executor.cache.size }}
+    {{- end }}
+    {{- if .Values.executor.workspace.enabled }}
+    - metadata:
+        name: executor-workspace
+      spec:
+        accessModes:
+          {{- toYaml .Values.executor.workspace.accessModes | nindent 10 }}
+        {{- if .Values.executor.workspace.storageClass }}
+        {{- if eq "-" .Values.executor.workspace.storageClass }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: "{{ .Values.executor.workspace.storageClass }}"
+        {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.executor.workspace.size }}
+    {{- end }}
+  {{- end }}
+{{- end }}

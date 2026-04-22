@@ -1,0 +1,127 @@
+{{- define "buildbuddy.ingressApiVersion" -}}
+{{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+networking.k8s.io/v1
+{{- else if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+networking.k8s.io/v1beta1
+{{- else -}}
+extensions/v1beta1
+{{- end }}
+{{- end }}
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "buildbuddy.fullname" . -}}
+{{- $svcPort := 80 -}}
+{{- $annotations := deepCopy .Values.ingress.annotations -}}
+{{- if .Values.ingress.certManager.clusterIssuer }}
+  {{- $_ := set $annotations "cert-manager.io/cluster-issuer" .Values.ingress.certManager.clusterIssuer -}}
+{{- end }}
+---
+apiVersion: {{ include "buildbuddy.ingressApiVersion" . }}
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- range .Values.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- if .secretName }}
+      secretName: {{ .secretName }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $fullName }}
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+{{- if .Values.ingress.grpc.enabled }}
+{{- $fullName := include "buildbuddy.fullname" . -}}
+{{- $grpcAnnotations := deepCopy .Values.ingress.grpc.annotations -}}
+{{- if not (hasKey $grpcAnnotations "nginx.ingress.kubernetes.io/backend-protocol") }}
+  {{- $_ := set $grpcAnnotations "nginx.ingress.kubernetes.io/backend-protocol" "GRPC" -}}
+{{- end }}
+{{- if .Values.ingress.grpc.certManager.clusterIssuer }}
+  {{- $_ := set $grpcAnnotations "cert-manager.io/cluster-issuer" .Values.ingress.grpc.certManager.clusterIssuer -}}
+{{- end }}
+---
+apiVersion: {{ include "buildbuddy.ingressApiVersion" . }}
+kind: Ingress
+metadata:
+  name: {{ printf "%s-grpc" $fullName }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+  annotations:
+    {{- toYaml $grpcAnnotations | nindent 4 }}
+spec:
+  {{- if .Values.ingress.grpc.className }}
+  ingressClassName: {{ .Values.ingress.grpc.className }}
+  {{- else if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.grpc.tls }}
+  tls:
+    {{- range .Values.ingress.grpc.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- if .secretName }}
+      secretName: {{ .secretName }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.grpc.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: 1985
+              {{- else }}
+              serviceName: {{ $fullName }}
+              servicePort: 1985
+              {{- end }}
+          {{- end }}
+    {{- end }}
+{{- end }}

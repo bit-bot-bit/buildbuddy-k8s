@@ -1,0 +1,83 @@
+name: Chart CI
+
+on:
+  pull_request:
+    paths:
+      - "Chart.yaml"
+      - "Chart.lock"
+      - "values.yaml"
+      - "README.md"
+      - "templates/**"
+      - ".github/scripts/**"
+      - ".github/workflows/chart-ci.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Chart.yaml"
+      - "Chart.lock"
+      - "values.yaml"
+      - "README.md"
+      - "templates/**"
+      - ".github/scripts/**"
+      - ".github/workflows/chart-ci.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Compute chart version
+        id: version
+        run: |
+          version="$(.github/scripts/compute-chart-version.sh package)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Apply computed chart version
+        run: .github/scripts/set-chart-version.sh "${{ steps.version.outputs.version }}"
+
+      - name: Add chart dependencies
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm dependency build .
+
+      - name: Lint chart
+        run: helm lint .
+
+      - name: Render default chart
+        run: helm template buildbuddy .
+
+      - name: Render full-feature chart
+        run: >
+          helm template buildbuddy .
+          --set ingress.enabled=true
+          --set ingress.grpc.enabled=true
+          --set executor.enabled=true
+          --set postgresql.enabled=true
+          --set redis.enabled=true
+
+      - name: Package chart
+        run: |
+          mkdir -p .artifacts
+          helm package . --destination .artifacts
+
+      - name: Upload chart package
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildbuddy-chart-${{ steps.version.outputs.version }}
+          path: .artifacts/*.tgz
+          if-no-files-found: error

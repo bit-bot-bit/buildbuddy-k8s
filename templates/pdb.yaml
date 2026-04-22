@@ -1,0 +1,29 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "buildbuddy.fullname" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "buildbuddy.appSelectorLabels" . | nindent 6 }}
+{{- end }}
+{{- if and .Values.executor.enabled .Values.executor.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "buildbuddy.executorFullname" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: executor
+spec:
+  minAvailable: {{ .Values.executor.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "buildbuddy.executorSelectorLabels" . | nindent 6 }}
+{{- end }}

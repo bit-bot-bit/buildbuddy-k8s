@@ -1,0 +1,11 @@
+{{- if not .Values.configExistingSecret }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "buildbuddy.appConfigObjectName" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+{{ include "buildbuddy.renderedConfig" . | indent 4 }}
+{{- end }}

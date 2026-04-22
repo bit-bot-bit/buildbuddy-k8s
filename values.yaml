@@ -1,0 +1,178 @@
+# BuildBuddy default values.
+
+replicaCount: 1
+
+image:
+  repository: gcr.io/flame-public/buildbuddy-app-onprem
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+enterprise: false
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: LoadBalancer
+  httpPort: 8080
+  grpcPort: 1985
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  certManager:
+    clusterIssuer: ""
+  hosts:
+    - host: buildbuddy.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  grpc:
+    enabled: false
+    className: ""
+    annotations: {}
+    certManager:
+      clusterIssuer: ""
+    hosts:
+      - host: grpc.buildbuddy.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  mountPath: /data
+
+pdb:
+  enabled: false
+  minAvailable: 1
+
+secretEnv: {}
+extraEnvSecrets: []
+
+configExistingSecret: ""
+
+# Default BuildBuddy Configuration Map.
+# This object will be serialized directly as YAML to config.yaml unless
+# configExistingSecret points to an externally managed Secret containing config.yaml.
+config:
+  database:
+    data_source: "sqlite3:///data/buildbuddy.db"
+  storage:
+    ttl_seconds: 2592000 # 30 days
+    disk:
+      root_directory: "/data/blobs/"
+  cache:
+    disk:
+      root_directory: "/data/cache/"
+
+postgresql:
+  enabled: false
+  auth:
+    username: buildbuddy
+    password: buildbuddy
+    database: buildbuddy
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+redis:
+  enabled: false
+  architecture: standalone
+  auth:
+    enabled: false
+    password: ""
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+executor:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: ghcr.io/buildbuddy-io/buildbuddy-executor
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  service:
+    enabled: true
+    annotations: {}
+    type: ClusterIP
+    grpcPort: 1985
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  pdb:
+    enabled: false
+    minAvailable: 1
+  rbac:
+    create: true
+  secretEnv: {}
+  extraEnvSecrets: []
+  extraVolumeMounts: []
+  extraVolumes: []
+  cache:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+    mountPath: /var/lib/buildbuddy/cache
+  workspace:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+    mountPath: /var/lib/buildbuddy/workspace
