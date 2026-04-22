@@ -2,7 +2,7 @@ apiVersion: v2
 name: buildbuddy
 description: A Helm chart for BuildBuddy - The Bazel Build and Remote Execution Service
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.0.0"
 dependencies:
   - name: postgresql
