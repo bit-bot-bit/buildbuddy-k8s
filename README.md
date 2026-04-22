@@ -3,7 +3,7 @@
 Helm chart for deploying BuildBuddy on Kubernetes with optional production-oriented
 features:
 
-- Bitnami `postgresql` and `redis` dependencies
+- Optional bundled PostgreSQL and Redis manifests using official images
 - Optional BuildBuddy executor StatefulSet for remote execution
 - Secret-backed environment injection and external config secret support
 - Separate HTTP and gRPC ingress definitions

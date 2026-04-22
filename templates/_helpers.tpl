@@ -104,19 +104,11 @@ Create the name of the service account to use
 {{- end }}
 
 {{- define "buildbuddy.postgresqlHost" -}}
-{{- if .Values.postgresql.fullnameOverride }}
-{{- .Values.postgresql.fullnameOverride }}
-{{- else }}
-{{- printf "%s-postgresql" .Release.Name }}
-{{- end }}
+{{- printf "%s-postgresql" (include "buildbuddy.fullname" .) }}
 {{- end }}
 
 {{- define "buildbuddy.redisHost" -}}
-{{- if .Values.redis.fullnameOverride }}
-{{- printf "%s-master" .Values.redis.fullnameOverride }}
-{{- else }}
-{{- printf "%s-redis-master" .Release.Name }}
-{{- end }}
+{{- printf "%s-redis" (include "buildbuddy.fullname" .) }}
 {{- end }}
 
 {{- define "buildbuddy.renderedConfig" -}}
@@ -129,7 +121,7 @@ Create the name of the service account to use
   {{- $_ := set (get $config "database") "data_source" $databaseUrl -}}
 {{- end }}
 {{- if .Values.redis.enabled }}
-  {{- $redisTarget := printf "%s:6379" (include "buildbuddy.redisHost" .) -}}
+  {{- $redisTarget := printf "%s:%v" (include "buildbuddy.redisHost" .) (.Values.redis.service.port | default 6379) -}}
   {{- if .Values.redis.auth.enabled }}
     {{- $redisTarget = printf ":%s@%s:6379" .Values.redis.auth.password (include "buildbuddy.redisHost" .) -}}
   {{- end }}

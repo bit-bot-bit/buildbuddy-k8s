@@ -110,25 +110,44 @@ config:
 
 postgresql:
   enabled: false
+  image:
+    repository: postgres
+    pullPolicy: IfNotPresent
+    tag: "16"
   auth:
     username: buildbuddy
     password: buildbuddy
     database: buildbuddy
-  primary:
-    persistence:
-      enabled: true
-      size: 8Gi
+  service:
+    port: 5432
+  resources: {}
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    mountPath: /var/lib/postgresql/data
 
 redis:
   enabled: false
-  architecture: standalone
+  image:
+    repository: redis
+    pullPolicy: IfNotPresent
+    tag: "7-alpine"
   auth:
     enabled: false
     password: ""
-  master:
-    persistence:
-      enabled: true
-      size: 8Gi
+  service:
+    port: 6379
+  resources: {}
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    mountPath: /data
 
 executor:
   enabled: false

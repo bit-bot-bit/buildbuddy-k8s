@@ -1,0 +1,73 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "buildbuddy.redisHost" . }}
+  labels:
+    {{- include "buildbuddy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  serviceName: {{ include "buildbuddy.redisHost" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "buildbuddy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "buildbuddy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          ports:
+            - name: redis
+              containerPort: {{ .Values.redis.service.port }}
+              protocol: TCP
+          {{- if .Values.redis.auth.enabled }}
+          env:
+            - name: REDIS_PASSWORD
+              value: {{ .Values.redis.auth.password | quote }}
+          command:
+            - sh
+            - -c
+            - 'exec redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"'
+          {{- else }}
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.redis.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.redis.persistence.mountPath }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+  {{- if .Values.redis.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          {{- toYaml .Values.redis.persistence.accessModes | nindent 10 }}
+        {{- if .Values.redis.persistence.storageClass }}
+        {{- if eq "-" .Values.redis.persistence.storageClass }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: "{{ .Values.redis.persistence.storageClass }}"
+        {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.persistence.size }}
+  {{- end }}
+{{- end }}

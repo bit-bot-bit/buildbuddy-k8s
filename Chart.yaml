@@ -4,12 +4,3 @@ description: A Helm chart for BuildBuddy - The Bazel Build and Remote Execution 
 type: application
 version: 0.1.1
 appVersion: "1.0.0"
-dependencies:
-  - name: postgresql
-    version: "15.x.x"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: postgresql.enabled
-  - name: redis
-    version: "20.x.x"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: redis.enabled
