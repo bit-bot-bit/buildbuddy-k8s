@@ -72,12 +72,12 @@ jobs:
 
       - name: Package chart
         run: |
-          mkdir -p .artifacts
-          helm package . --destination .artifacts
+          mkdir -p artifacts
+          helm package . --destination artifacts
 
       - name: Upload chart package
         uses: actions/upload-artifact@v4
         with:
           name: buildbuddy-chart-${{ steps.version.outputs.version }}
-          path: .artifacts/*.tgz
+          path: artifacts/*.tgz
           if-no-files-found: error
